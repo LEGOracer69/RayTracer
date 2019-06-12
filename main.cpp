@@ -1,19 +1,17 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-#include <stb_image.h> //this new
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/intersect.hpp>
 
-#include <shader.h>
-#include <camera.h>
-#include <model.h>
-#include <renderer.h>
-#include <scene.h>
-#include <light.h>
-#include <viewer.h>
+#include <shader.hpp>
+#include <camera.hpp>
+#include <model.hpp>
+#include <renderer.hpp>
+#include <scene.hpp>
+#include <viewer.hpp>
 
 #include <iostream>
 #include <fstream>
@@ -27,7 +25,7 @@ bool TRACING = false;
 bool startRender = false;
 
 
-int main(int argc, char *argv[]) {
+int main() {
     Scene scene("data/view_test.rtc");
     Viewer viewer(scene.scr_width, scene.scr_height);
     viewer.createWindow();
@@ -38,17 +36,19 @@ int main(int argc, char *argv[]) {
 
 
     Model ourModel("data/" + scene.filename_in);
+    // Model ourModel("data/nanosuit.obj");
+    // Model ourModel("data/teapot.obj");
+    // Model ourModel;
     viewer.setModel(&ourModel);
     viewer.compileShaders();
 
 
-
-    Renderer renderer(ourModel.meshes, scene.scr_width, scene.scr_height, scene.rec_depth);
-    renderer.render(camera.Position, {0.0f, 0.0f, -1.0f}, 45.0f);
+    Renderer renderer(ourModel.meshes, scene);
+    // Renderer renderer(ourModel.meshes, scene);
+    // Scene scene("a");
     uint8_t* data = renderer.getImage();
     viewer.setImage(data);
-    
-    
+
     while(viewer.update()) {
         processInput(window);
         if(TRACING)
@@ -60,9 +60,9 @@ int main(int argc, char *argv[]) {
             startRender = false;
             renderer.render(camera.Position, camera.Front, 45.0f);
             viewer.setImage(data);
+            renderer.save();
         }
     }
-
 }
 
 
@@ -79,6 +79,14 @@ void processInput(GLFWwindow *window) {
         C_PRESSED = false;
 
     if ((glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS)){
-        startRender = true;
-    }
+        if(!R_PRESSED) {
+            startRender = true;
+        }
+        R_PRESSED = true;
+    } else
+        R_PRESSED = false;
+
+    // if ((glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS)){
+    //     startRender = true;
+    // }
 }
