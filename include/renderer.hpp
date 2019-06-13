@@ -7,6 +7,7 @@
 
 #include <glm/glm.hpp>
 #include <vector>
+#include <random>
 
 class Renderer {
 public:
@@ -18,9 +19,9 @@ public:
     void draw();
     void save();
 private:
-    glm::vec3 rayTrace(const Ray& ray);
+    glm::vec3 rayTrace(const Ray& ray, int level);
     bool intersectShadow(const Ray& ray);
-    bool intersectModel(const Ray& ray, glm::vec3& touch, glm::vec3& normal, Color& color);
+    bool intersectModel(const Ray& ray, glm::vec3& touch, glm::vec3& normal, Material& material);
     void calcScreen(glm::vec3 dir, float FOV, glm::vec3& corner, glm::vec3& down, glm::vec3& right);
     std::vector<Mesh>& meshes;
     Scene scene;
@@ -32,6 +33,10 @@ private:
     int width, height;
     float widthf, heightf;
     int rec_depth;
+
+    std::random_device rd;
+    std::mt19937 gen;
+    std::uniform_real_distribution<> rand;
 };
 
 

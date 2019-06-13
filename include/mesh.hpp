@@ -5,7 +5,7 @@
 #include <glm/glm.hpp>
 
 #include <shader.hpp>
-#include <color.hpp>
+#include <material.hpp>
 
 #include <string>
 #include <vector>
@@ -28,13 +28,13 @@ public:
     std::vector <Vertex> vertices;
     std::vector <unsigned int> indices;
     std::vector <Texture> textures;
-    Color color;
+    Material material;
     // Functions
-    Mesh(std::vector <Vertex> vertices, std::vector <unsigned int> indices, std::vector <Texture> textures, Color meshColor);
+    Mesh(std::vector <Vertex> vertices, std::vector <unsigned int> indices, std::vector <Texture> textures, Material meshMaterial);
     void Draw(Shader& shader);
     
-    Color getColor(glm::vec2 TexCoords);
-    Color getColor() {return color;};
+    Material getMaterial(glm::vec2 TexCoords);
+    Material getMaterial() {return material;};
 private:
     // Render data
     unsigned int VAO, VBO, EBO;

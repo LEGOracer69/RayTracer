@@ -10,7 +10,7 @@
 #include <assimp/postprocess.h>
 
 #include <mesh.hpp>
-#include <color.hpp>
+#include <scene.hpp>
 
 #include <string>
 #include <vector>
@@ -21,16 +21,15 @@ unsigned int TextureFromFile(const char *path, const std::string &directory, boo
 class Model {
 public:
     // Functions
-    Model(std::string path) { loadModel(path); };
+    Model(Scene& scene) { loadModel(scene); };
     void Draw(Shader& shader);
-    bool intersectModel(const glm::vec3& origin, const glm::vec3& ray, glm::vec3& touch, glm::vec3& normal, Color& color);
     // Model data
     std::vector <Mesh> meshes;
 private:
     std::string directory;
     std::vector<Texture> textures_loaded; // stores all the textures loaded so far
     // Functions
-    void loadModel(std::string path);
+    void loadModel(Scene& scene);
     void processNode(aiNode *node, const aiScene *scene);
     Mesh processMesh(aiMesh *mesh, const aiScene *scene);
     std::vector <Texture> loadMaterialTextures(aiMaterial *mat, aiTextureType type, std::string typeName);

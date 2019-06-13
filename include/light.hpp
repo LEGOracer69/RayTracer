@@ -4,7 +4,7 @@
 #include <glm/glm.hpp>
 
 
-struct Light{
+struct LightPoint{
     glm::vec3 color;
     glm::vec3 pos;
     float& r = color.r;
@@ -16,6 +16,16 @@ struct Light{
     float intensity;
 };
 
+struct LightTriangle{
+    glm::vec3 color;
+    glm::vec3 pos[3];
+    glm::vec3 normal[3];
+    float& r = color.r;
+    float& g = color.g;
+    float& b = color.b;
+    float intensity;
+    float surface = 1.0f;
+};
 
 
 #endif

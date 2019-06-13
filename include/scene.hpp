@@ -8,7 +8,6 @@
 #include <string>
 #include <vector>
 
-
 class Scene{
 public:
     Scene(std::string filename);
@@ -27,7 +26,8 @@ public:
     glm::vec3 UP;
     
     float yview;
-    std::vector <Light> light;
+    std::vector <LightPoint> lightPoint;
+    std::vector <LightTriangle> lightTriangle;
 };
 
 #endif
