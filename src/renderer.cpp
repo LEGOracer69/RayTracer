@@ -6,9 +6,11 @@
 #include <FreeImage.h>
 
 #include <iostream>
+#include <cstdlib>
 
+#define RUSSIAN_ROULETE true
 
-Renderer::Renderer(std::vector<Mesh>& mesh, Scene& _scene) : meshes(mesh), scene(_scene){
+Renderer::Renderer(std::vector<Mesh>& mesh, Scene& _scene) : meshes(mesh), scene(_scene), gen(rd()), rand(0.0, 1.0){
     width = scene.scr_width;
     height = scene.scr_height;
     widthf = (float)scene.scr_width;
@@ -30,7 +32,7 @@ Renderer::Renderer(std::vector<Mesh>& mesh, Scene& _scene) : meshes(mesh), scene
     kdtree.init(mesh);
 }
 
-bool Renderer::intersectModel(const Ray& ray, glm::vec3& touch, glm::vec3& normal, Color& color) {
+bool Renderer::intersectModel(const Ray& ray, glm::vec3& touch, glm::vec3& normal, Material& material) {
     glm::vec3 baryPosition;
     int oldIndex;
     int meshIndex = kdtree.intersect(ray, baryPosition, oldIndex);
@@ -38,7 +40,7 @@ bool Renderer::intersectModel(const Ray& ray, glm::vec3& touch, glm::vec3& norma
         return false;
     Mesh& mesh = meshes[meshIndex];
 
-    color = mesh.getColor();
+    material = mesh.getMaterial();
     Vertex& vec1  = mesh.vertices[mesh.indices[oldIndex    ]];
     Vertex& vec2  = mesh.vertices[mesh.indices[oldIndex + 1]];
     Vertex& vec3  = mesh.vertices[mesh.indices[oldIndex + 2]];
@@ -73,24 +75,50 @@ void Renderer::draw() {
 
 void Renderer::save() {
     FreeImage_Initialise();
+    FREE_IMAGE_FORMAT format = FreeImage_GetFIFFromFilename(scene.filename_out.c_str());
+    FIBITMAP *bitmap;
 
-    FIBITMAP *bitmap = FreeImage_Allocate(scene.scr_width, scene.scr_height, 24);
-    if (!bitmap) {
-        std::cerr << "FreeImage export failed.\n";
-        FreeImage_DeInitialise();
-        return;
-    }
 
-    RGBQUAD color;
-    for (int y = scene.scr_height - 1, i = 0; y >= 0; y--) {
-        for (int x = 0; x < scene.scr_width; x++) {
-            color.rgbRed = data[i++];
-            color.rgbGreen = data[i++];
-            color.rgbBlue = data[i++];
-            FreeImage_SetPixelColor(bitmap, x, y, &color);
+    if (format == FIF_EXR || format == FIF_HDR) {
+        // export in high dynamic range
+        bitmap = FreeImage_AllocateT(FIT_RGBF, scene.scr_width, scene.scr_height);
+        if (!bitmap) {
+            std::cerr << "FreeImage export failed.\n";
+            FreeImage_DeInitialise();
+            return;
+        }
+    
+        unsigned offset = FreeImage_GetPitch(bitmap);
+        auto bits = FreeImage_GetBits(bitmap);
+
+        for (int y = scene.scr_height; y-- > 0;) {
+            float *pixel = reinterpret_cast<float *>(bits);
+            for (int x = 0; x < scene.scr_width; x++) {
+                *(pixel++) = image[y][x].r;
+                *(pixel++) = image[y][x].g;
+                *(pixel++) = image[y][x].b;
+            }
+            bits += offset;
+        }
+    } else {
+        bitmap = FreeImage_Allocate(scene.scr_width, scene.scr_height, 24);
+        if (!bitmap) {
+            std::cerr << "FreeImage export failed.\n";
+            FreeImage_DeInitialise();
+            return;
+        }
+        RGBQUAD color;
+        for (int y = scene.scr_height - 1, i = 0; y >= 0; y--) {
+            for (int x = 0; x < scene.scr_width; x++) {
+                color.rgbRed = data[i++];
+                color.rgbGreen = data[i++];
+                color.rgbBlue = data[i++];
+                FreeImage_SetPixelColor(bitmap, x, y, &color);
+            }
         }
     }
-    if (FreeImage_Save(FreeImage_GetFIFFromFilename(scene.filename_out.c_str()), bitmap, scene.filename_out.c_str(), 0))
+
+    if (FreeImage_Save(format, bitmap, scene.filename_out.c_str(), 0))
         std::cerr << "Render succesfully saved to file " << scene.filename_out << "\n";
     else
         std::cerr << "FreeImage export failed.\n";
@@ -124,17 +152,27 @@ void Renderer::render(glm::vec3 viewer, glm::vec3 dir, float FOV){
     calcScreen(dir, FOV, corner, down, right);
 
     float maxValue = 0.0f;
-    for(int y=0; y<height; y++) {
-        std::cout << y << "/" << height << std::endl; // PROGRESS BAR
-        for(int x=0; x<width; x++) {
-            glm::vec3& pixel = image[y][x];
-            Ray ray(viewer, corner + (float(y)/heightf)*down + (float(x)/widthf)*right);
-            pixel = rayTrace(ray);
 
-            maxValue = pixel.x > maxValue ? pixel.x : maxValue;
-            maxValue = pixel.y > maxValue ? pixel.y : maxValue;
-            maxValue = pixel.z > maxValue ? pixel.z : maxValue;
+    for(int y=0; y<height; y++) 
+        for(int x=0; x<width; x++)
+            image[y][x] = glm::vec3(0.0f);
+    
+    for(int samples=0; samples < scene.samples; samples++) {
+        for(int y=0; y<height; y++) {
+            // std::cout << y << "/" << height << std::endl; // PROGRESS BAR
+            for(int x=0; x<width; x++) {
+                glm::vec3& pixel = image[y][x];
+                glm::vec3 direction = ((float(y) + float(rand(gen)) - 0.5f )/heightf)*down + ((float(x) + float(rand(gen)) - 0.5f)/widthf)*right;
+                Ray ray(viewer, corner + direction);
+                pixel += rayTrace(ray, 1);
+
+                maxValue = pixel.x > maxValue ? pixel.x : maxValue;
+                maxValue = pixel.y > maxValue ? pixel.y : maxValue;
+                maxValue = pixel.z > maxValue ? pixel.z : maxValue;
+            }
         }
+        std::cout << samples;
+        save();
     }
 
     for(int y=0; y<height; y++) {
@@ -147,87 +185,89 @@ void Renderer::render(glm::vec3 viewer, glm::vec3 dir, float FOV){
     }
 }
 
-glm::vec3 Renderer::rayTrace(const Ray& ray) {
+glm::vec3 Renderer::rayTrace(const Ray& ray, int level) {
     glm::vec3 normal, touch;
-    Color color;
-    if(!intersectModel(ray, touch, normal, color))
+    Material material;
+    if(!intersectModel(ray, touch, normal, material))
         return {0.0f, 0.0f, 0.0f};
+
+    glm::vec3 direct = (level == 1) ? material.emissive * M_1_PIf32 : glm::vec3(0.0f);
     
-    // return color.diffuse;
-
-
-    glm::vec3 diffuse = {0.0f, 0.0f, 0.0f};
-    glm::vec3 specular = {0.0f, 0.0f, 0.0f};
-
-    for(auto& light : scene.light) {
-        Ray shadowRay(touch + 0.0001f * normal, light.pos);
-        if(!intersectShadow(shadowRay)) {
-            glm::vec3 source = glm::normalize(light.pos - touch);
-            glm::vec3 reflected = glm::normalize(2.0f*glm::dot(source, normal)*normal - source);
-            glm::vec3 viewer = glm::normalize(ray.orig - touch);
-
-            float intensity = light.intensity * 1 / glm::distance2(touch, light.pos);
-
-            diffuse += glm::dot(source, normal) * light.color * intensity;
-            specular += glm::pow(glm::dot(reflected, viewer), color.alfa) * light.color * intensity;
-        } else
-            color.ambient = {0.0f, 0.3f, 0.7f};
+    // sample light
+    int ltID = int(rand(gen) * float(scene.lightTriangle.size()) * 0.9999f);
+    float u = rand(gen);
+    float v = rand(gen);
+    if(u + v > 1.0f) {
+        std::swap(u, v);
+        u = 1.0f - u; 
+        v = 1.0f - v;
     }
-    return 0.1f * color.ambient  +  diffuse * color.diffuse  +  specular * color.specular;
-}
 
+    glm::vec3 lightTouch = scene.lightTriangle[ltID].pos[0] * (1.0f - u - v) +
+                           scene.lightTriangle[ltID].pos[1] * u +
+                           scene.lightTriangle[ltID].pos[2] * v;
+
+    // glm::vec3 lightNormal = glm::cross(scene.lightTriangle[ltID].pos[1] - scene.lightTriangle[ltID].pos[0],
+    //                                    scene.lightTriangle[ltID].pos[2] - scene.lightTriangle[ltID].pos[0]);
+
+    // lightNormal = glm::normalize(lightNormal);
+
+    glm::vec3 lightNormal = scene.lightTriangle[ltID].normal[0] * (1.0f - u - v) +
+                            scene.lightTriangle[ltID].normal[1] * u +
+                            scene.lightTriangle[ltID].normal[2] * v;
+
+    glm::vec3 f_diffuse = material.diffuse * M_1_PIf32;
+
+    glm::vec3 wl = lightTouch - touch; // direction to light
+    
+    // calc light factor 
+    glm::vec3 lightFactor = glm::vec3(0.0f);
+    Ray intoLight = Ray(touch + 0.0001f*normal, wl + 0.0001f * lightNormal);
+
+    if(glm::dot(wl, normal) > 0.0f && !intersectShadow(intoLight)) {
+        glm::vec3 nwl = glm::normalize(wl);
+
+        float invPdf = float(scene.lightTriangle.size()) * scene.lightTriangle[ltID].surface;
+        glm::vec3 Le = scene.lightTriangle[ltID].color;
+        float geometric = std::max(0.0f, glm::dot(normal, nwl)) *
+                        std::max(0.0f, glm::dot(lightNormal, -nwl)) /
+                        (1.0f + glm::distance2(lightTouch, touch));
+
+        lightFactor = f_diffuse * invPdf * Le * geometric;
+    } 
+
+    #if RUSSIAN_ROULETE
+        float maxf = std::max(f_diffuse.r, f_diffuse.g);
+        maxf = f_diffuse.b > maxf ? f_diffuse.b : maxf;
+        maxf *= 1.5f;
+        if (level > 8 || rand(gen) > maxf)
+            return direct + lightFactor;
+    #else
+        if(level > 8)
+            return direct + lightFactor;
+    #endif
+
+    // indirect factor
+    glm::vec3 wi = glm::vec3(1.0f, 1.0f, 1.0f);
+    while(glm::length2(wi) > 1.0f || glm::dot(wi, normal) - 0.001f < 0.0f) {
+        wi = glm::vec3(rand(gen)*2.0f - 1.0f,
+                       rand(gen)*2.0f - 1.0f,
+                       rand(gen)*2.0f - 1.0f);
+    }
+    wi = glm::normalize(wi);    
+    Ray wiRay(touch + 0.0001f * normal, wi);
+
+    float cosine = glm::dot(normal, wi);
+    float invPdf = M_PI * 2.0f;
+    glm::vec3 indirectFactor = f_diffuse * invPdf * cosine * rayTrace(wiRay, level + 1);
+
+    #if RUSSIAN_ROULETE
+        return direct + lightFactor + indirectFactor / maxf;
+    #else
+        return direct + lightFactor + indirectFactor;
+    #endif
+}
 
 bool Renderer::intersectShadow(const Ray& ray) {
     return kdtree.intersect(ray);
 }
-
-
-
-
-
-
-
-
-
-
-    // for (auto& mesh : meshes) {
-    //     auto& indices = mesh.indices;
-    //     auto& vertices = mesh.vertices;
-    //     glm::vec3 result;
-
-    //     for(int i=0; i<indices.size(); i+=3) {
-    //         Vertex& vec1 = vertices[indices[i]];
-    //         Vertex& vec2 = vertices[indices[i+1]];
-    //         Vertex& vec3 = vertices[indices[i+2]];
-    //         if(glm::intersectRayTriangle(origin, ray, vec1.Position, vec2.Position, vec3.Position, result)){
-    //             return true;
-    //         }
-    //     }
-    // }
-    // return false;
-
-/*
-// Returns index of intersected triangle
-int intersectWorld(const Ray& ray, glm::vec3& result, ) {
-    float distance = FLT_MAX;
-    int index;
-    for (auto& mesh : meshes) {
-        auto& indices = mesh.indices;
-        auto& vertices = mesh.vertices;
-
-        for(int i=0; i<indices.size(); i+=3) {
-            Vertex& vec1 = vertices[indices[i]];
-            Vertex& vec2 = vertices[indices[i+1]];
-            Vertex& vec3 = vertices[indices[i+2]];
-            glm::vec3 tmp;
-            if(glm::intersectRayTriangle(origin, ray, vec1.Position, vec2.Position, vec3.Position, tmp)){
-                if(result.z < distance) {
-                    distance = tmp.z;
-                    result = tmp; /// Sprawdz typy i resturnowanie
-                }
-            }
-        }
-    }
-    return false;
-}
-*/

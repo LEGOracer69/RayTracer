@@ -1,4 +1,5 @@
 #include <model.hpp>
+#include <material.hpp>
 
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -14,17 +15,41 @@ void Model::Draw(Shader& shader) {
         meshes[i].Draw(shader);
 }
 
-void Model::loadModel(std::string path) {
+void Model::loadModel(Scene& scene) {
     Assimp::Importer import;
-    const aiScene *scene = import.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenNormals);
+    const aiScene *aiscene = import.ReadFile(scene.filename_in, aiProcess_Triangulate |
+                                                 aiProcess_FlipUVs |
+                                                 aiProcess_GenNormals);
 
-    if(!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
+    if(!aiscene || aiscene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !aiscene->mRootNode) {
         std::cout << "ERROR::ASSIMP::" << import.GetErrorString() << "\n";
         return;
     }
-    directory = path.substr(0, path.find_last_of('/'));
+    directory = scene.filename_in.substr(0, scene.filename_in.find_last_of('/'));
+    processNode(aiscene->mRootNode, aiscene);
 
-    processNode(scene->mRootNode, scene);
+    unsigned numLights = 0;
+    for(auto& mesh : meshes) {
+        if(mesh.getMaterial().emissive != glm::vec3(0.0f, 0.0f, 0.0f)) {
+            for(uint i=0; i<mesh.indices.size();) {
+                LightTriangle lTriangle;
+
+                lTriangle.color = mesh.getMaterial().emissive;
+                lTriangle.intensity = mesh.getMaterial().intensity;
+
+                lTriangle.pos[0] = mesh.vertices[mesh.indices[i]].Position;
+                lTriangle.normal[0] = mesh.vertices[mesh.indices[i++]].Normal;
+                lTriangle.pos[1] = mesh.vertices[mesh.indices[i]].Position;
+                lTriangle.normal[1] = mesh.vertices[mesh.indices[i++]].Normal;
+                lTriangle.pos[2] = mesh.vertices[mesh.indices[i]].Position;
+                lTriangle.normal[2] = mesh.vertices[mesh.indices[i++]].Normal;
+
+                scene.lightTriangle.push_back(lTriangle);
+                numLights++;
+            }
+        }
+    }
+    std::cerr << numLights << " triangle lights loaded." << std::endl;
 }
 
 void Model::processNode(aiNode *node, const aiScene *scene) {
@@ -52,6 +77,7 @@ Mesh Model::processMesh(aiMesh *mesh, const aiScene *scene) {
         vector.y = mesh->mVertices[i].y;
         vector.z = mesh->mVertices[i].z;
         vertex.Position = vector;
+        // vertex.Position /= 50.0f;
         
         vector.x = mesh->mNormals[i].x;
         vector.y = mesh->mNormals[i].y;
@@ -69,9 +95,6 @@ Mesh Model::processMesh(aiMesh *mesh, const aiScene *scene) {
         vertices.push_back(vertex);
     }
 
-
-
-
     // process indices
     for (unsigned int i = 0; i < mesh->mNumFaces; i++) {
         aiFace face = mesh->mFaces[i];
@@ -79,7 +102,7 @@ Mesh Model::processMesh(aiMesh *mesh, const aiScene *scene) {
             indices.push_back(face.mIndices[j]);
     }
     // process material
-    Color color;
+    Material color;
     aiMaterial *material = scene->mMaterials[mesh->mMaterialIndex];
     color.set = true;
 
@@ -90,6 +113,10 @@ Mesh Model::processMesh(aiMesh *mesh, const aiScene *scene) {
     color.diffuse = glm::vec3(tmpColor.r, tmpColor.g, tmpColor.b);
     material->Get(AI_MATKEY_COLOR_SPECULAR, tmpColor);
     color.specular = glm::vec3(tmpColor.r, tmpColor.g, tmpColor.b);
+    material->Get(AI_MATKEY_COLOR_EMISSIVE, tmpColor);
+    color.emissive = glm::vec3(tmpColor.r, tmpColor.g, tmpColor.b);
+    material->Get(AI_MATKEY_SHININESS, color.shininess);
+    material->Get(AI_MATKEY_REFRACTI, color.refraction);
 
     std::vector<Texture> diffuseMaps =
         loadMaterialTextures(material, aiTextureType_DIFFUSE, "texture_diffuse");
@@ -144,7 +171,7 @@ unsigned int TextureFromFile(const char *path, const std::string &directory, boo
     unsigned char *data = stbi_load(filename.c_str(), &width, &height, &nrComponents, 0);
     if (data)
     {
-        GLenum format;
+        GLenum format = GL_RGB;
         if (nrComponents == 1)
             format = GL_RED;
         else if (nrComponents == 3)

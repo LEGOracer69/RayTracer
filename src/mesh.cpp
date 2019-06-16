@@ -6,11 +6,11 @@
 #include <sstream>
 #include <iostream>
 
-Mesh::Mesh(std::vector<Vertex> vertices, std::vector<unsigned int> indices, std::vector<Texture> textures, Color meshColor) {
+Mesh::Mesh(std::vector<Vertex> vertices, std::vector<unsigned int> indices, std::vector<Texture> textures, Material meshMaterial) {
     this->vertices = vertices;
     this->indices = indices;
     this->textures = textures;
-    this->color = meshColor;
+    this->material = meshMaterial;
 
     for(auto& tex : textures) {
         if(tex.type == "texture_specular")

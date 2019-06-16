@@ -1,8 +1,8 @@
 # Przykladowy Makefile dla tutorialu06 dzialajacy na pracowni
 # (c) anl 2015-2017 
 #
-CXX= g++ -g -fopenmp
-CFLAGS= -I/usr/local/include/GLFW/ -I./include/ -I./  -std=c++14  -Wall -Wextra -O0
+CXX= g++ -fopenmp
+CFLAGS= -I/usr/local/include/GLFW/ -I./include/ -I./  -std=c++14  -Wall -Wextra -O3
 LIBS=-lglfw3 -lGL  -ldl -lX11 -lXxf86vm -lXrandr -lXi -lXinerama -lXcursor -lpthread -lassimp -lfreeimage
 
 default: main
@@ -27,7 +27,7 @@ mesh.o: src/mesh.cpp
 	${CXX} ${CFLAGS} -c src/mesh.cpp -o mesh.o  ${COMMON} ${LIBS}
 
 model.o: src/model.cpp
-	${CXX} ${CFLAGS} -Wno-implicit-fallthrough -Wno-unused-parameter -c src/model.cpp -o model.o  ${COMMON} ${LIBS}
+	${CXX} ${CFLAGS} -Wno-unused-parameter -c src/model.cpp -o model.o  ${COMMON} ${LIBS}
 
 viewer.o: src/viewer.cpp
 	${CXX} ${CFLAGS} -c src/viewer.cpp -o viewer.o  ${COMMON} ${LIBS}

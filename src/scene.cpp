@@ -20,13 +20,13 @@ Scene::Scene(std::string filename) {
             file.unget();
             break;
         }
-        Light tmpLight;
+        LightPoint tmpLight;
         uint8_t red, green, blue;
         file >> tmpLight.pos.x >> tmpLight.pos.y >> tmpLight.pos.z;
         file >> red >> green >> blue;
         file >> tmpLight.intensity;
         tmpLight.color = {(float)(red) / 255.0f, (float)(green) / 255.0f, (float)(blue) / 255.0f};
-        light.push_back(tmpLight);
+        lightPoint.push_back(tmpLight);
     }
     file.close();
 }

@@ -275,7 +275,7 @@ bool KDTree::intersect(const Ray& ray) {
     float tMin, tMax;
     if(!worldBounds.intersectRay(ray, tMin, tMax))
         return false;
-    tMin = tMin < 0.0f ? 0.0f : tMin;
+    tMin = tMin < 0.001f ? 0.001f : tMin;
     tMax = tMax > 0.999f ? 0.999f : tMax;
     return intersectNode(0, ray, tMin, tMax);
 }

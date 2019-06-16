@@ -20,6 +20,7 @@ public:
     int rec_depth;
     int scr_width;
     int scr_height;
+    int samples = 1000;
 
     glm::vec3 VP;
     glm::vec3 LA;
