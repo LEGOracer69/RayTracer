@@ -314,6 +314,9 @@ bool KDTree::intersectNode(int nodeIndex,const Ray& ray, float tMin, float tMax)
     int nearChildIndex = tree[nodeIndex].belowChild();
     if((ray.orig[axis] + ray.dir[axis]*tMin) > tree[nodeIndex].split())
         std::swap(nearChildIndex, farChildIndex);
+
+    if(tSplit > tMax || tSplit <= tMin)
+        return intersectNode(nearChildIndex, ray, tMin, tSplit);
     
     if(intersectNode(nearChildIndex, ray, tMin, tSplit))
         return true;
@@ -346,6 +349,9 @@ int KDTree::intersectNode(int nodeIndex, const Ray& ray, float tMin, float tMax,
     if((ray.orig[axis] + ray.dir[axis]*tMin) > tree[nodeIndex].split())
         std::swap(nearChildIndex, farChildIndex);
     
+    if(tSplit > tMax || tSplit <= tMin)
+        return intersectNode(nearChildIndex, ray, tMin, tSplit, baryPosition);
+
     int nearTriangle = intersectNode(nearChildIndex, ray, tMin, tSplit, baryPosition);
     if(nearTriangle < 0) {
         return intersectNode(farChildIndex, ray, tSplit, tMax, baryPosition);
