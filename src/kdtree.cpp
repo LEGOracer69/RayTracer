@@ -316,7 +316,7 @@ bool KDTree::intersectNode(int nodeIndex,const Ray& ray, float tMin, float tMax)
         std::swap(nearChildIndex, farChildIndex);
 
     if(tSplit > tMax || tSplit <= tMin)
-        return intersectNode(nearChildIndex, ray, tMin, tSplit);
+        return intersectNode(nearChildIndex, ray, tMin, tMax);
     
     if(intersectNode(nearChildIndex, ray, tMin, tSplit))
         return true;
