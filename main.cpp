@@ -24,9 +24,29 @@ void processInput(GLFWwindow *window);
 bool TRACING = false;
 bool startRender = false;
 
-
 int main() {
     Scene scene("data/view_test.rtc");
+
+    // if(scene.filename_in == "data/sponza.obj"){
+    //     LightTriangle triangle;
+    //     triangle.pos[0] = glm::vec3(-11.0f, 15.5f,  3.0f);
+    //     triangle.pos[1] = glm::vec3(-11.0f, 15.5f, -3.0f);
+    //     triangle.pos[2] = glm::vec3( 11.0f, 15.5f, -3.0f);
+    //     triangle.normal[0] = glm::vec3(0.0f, -1.0f, 0.0f);
+    //     triangle.normal[1] = glm::vec3(0.0f, -1.0f, 0.0f);
+    //     triangle.normal[2] = glm::vec3(0.0f, -1.0f, 0.0f);
+    //     triangle.color = glm::vec3(1.0f, 1.0f, 1.0f);
+    //     scene.lightTriangle.push_back(triangle);
+
+    
+    //     triangle.pos[0] = glm::vec3(-11.0f, 15.5f, -3.0f);
+    //     triangle.pos[1] = glm::vec3( 11.0f, 15.5f, -3.0f);
+    //     triangle.pos[2] = glm::vec3( 11.0f, 15.5f,  3.0f);
+    //     scene.lightTriangle.push_back(triangle);
+    // }
+
+
+
     Viewer viewer(scene.scr_width, scene.scr_height);
     viewer.createWindow();
     
@@ -35,17 +55,12 @@ int main() {
     Camera& camera = *viewer.getCamera();
 
 
-    Model ourModel("data/" + scene.filename_in);
-    // Model ourModel("data/nanosuit.obj");
-    // Model ourModel("data/teapot.obj");
-    // Model ourModel;
+    Model ourModel(scene);
     viewer.setModel(&ourModel);
     viewer.compileShaders();
 
 
     Renderer renderer(ourModel.meshes, scene);
-    // Renderer renderer(ourModel.meshes, scene);
-    // Scene scene("a");
     uint8_t* data = renderer.getImage();
     viewer.setImage(data);
 
@@ -60,7 +75,6 @@ int main() {
             startRender = false;
             renderer.render(camera.Position, camera.Front, 45.0f);
             viewer.setImage(data);
-            renderer.save();
         }
     }
 }

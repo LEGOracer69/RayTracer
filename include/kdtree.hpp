@@ -9,7 +9,7 @@
 
 #include <iostream>
 
-#define MAX_LEAF_SIZE 4
+#define MAX_LEAF_SIZE 8
 
 struct Triangle {
     glm::vec3 v1;
